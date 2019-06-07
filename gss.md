@@ -59,8 +59,9 @@ unique(gss_all$idnum) %>% length()
 
     ## [1] 6067
 
-There are data from 6067 participants. \#\#\#\# question: what are .d,
-.i, .n???
+There are data from 6067 participants.
+
+#### question: what are .d, .i, .n???
 
 ### frequency table
 
@@ -146,8 +147,9 @@ gss_all %>%
   geom_point() + geom_line(alpha = 0.5) + theme(legend.position="none")
 ```
 
-![](gss_files/figure-gfm/unnamed-chunk-6-1.png)<!-- --> Just sampled
-1000 participants to see if there is a pattern.
+![](gss_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+Just sampled 1000 participants to see if there is a pattern.
 
 Below is a correlation matrix between `contv` and `tvhours` for the
 first wave. I removed non-numeric values and altered the variables to be

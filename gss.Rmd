@@ -41,6 +41,7 @@ unique(gss_all$idnum) %>% length()
 ```
 
 There are data from 6067 participants.
+
 #### question: what are .d, .i, .n???
 
 ### frequency table
@@ -77,6 +78,7 @@ gss_all %>%
   ggplot(aes(x = panelwave, y = tvhours, group = idnum, color = idnum)) +
   geom_point() + geom_line(alpha = 0.5) + theme(legend.position="none")
 ```
+
 Just sampled 1000 participants to see if there is a pattern. 
 
 Below is a correlation matrix between `contv` and `tvhours` for the first wave. I removed non-numeric values and altered the variables to be numeric to see the relationship.
