@@ -1,3 +1,0 @@
-"0","gss_all$tvhours %>% "
-"0","  table() %>%"
-"0","  knitr::kable()"

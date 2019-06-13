@@ -1,4 +1,0 @@
-"0",""
-"0","gss_all$contv %>% "
-"0","  table() %>%"
-"0","  knitr::kable()"

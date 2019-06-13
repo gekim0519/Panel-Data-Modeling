@@ -1,0 +1,8 @@
+"0",""
+"0",""
+"0","gss_all$contv %>% "
+"0","  table() %>%"
+"0","  as.data.frame(col.names = values) %>%"
+"0","  rename(., values = .) %>%"
+"0","  mutate(Percent = Freq/sum(Freq)) %>%"
+"0","  knitr::kable()"
