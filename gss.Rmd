@@ -134,9 +134,20 @@ contv_cor = panel1_cor  %>%
   as.data.frame() %>%
   select(contv) %>%
   rownames_to_column('var') %>% 
-  filter(contv > 0.25)
+  filter(contv > 0.2)
+
+# negatively corr check
+# check top ten? five?
+# try ten% 
+# put in the y var in amelia
 
 contv_cor
+
+panel1_cor  %>%
+  as.data.frame() %>%
+  select(contv) %>%
+  rownames_to_column('var') %>% 
+  filter(contv < -0.25)
 ```
 Above is a pearson correlation coefficient with `contv` with all the other variables. I have filtered out those that are above 0.2.
 
@@ -155,6 +166,8 @@ Should I remove sparse columns?
 
 ```{r}
 #library(lsr)
+#corr package
+library(corrr)
 #gss_all %>% filter(panelwave == 1) %>% correlate() %>% focus(contv) %>% arrange(tvhours)
 ```
 
@@ -166,5 +179,8 @@ gss_numeric_p1 %>%
   is.na() %>%
   as.data.frame() %>%
   map(sum)
+
+# remove 50%? na vars
+# look at sparse vars
 ```
 I counted missings in each variables. Considering there are 6067 rows, most of the variables are very sparse columns.
