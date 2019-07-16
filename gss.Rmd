@@ -9,6 +9,8 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
+library(purrr)
+library(Amelia)
 ```
 
 ```{r, message=FALSE, warning=FALSE}
@@ -21,7 +23,36 @@ gss_all = readr::read_csv('./data/gss-all-panels-06-14.csv', na = c(".d", ".i", 
 
 So in `gss_all`, I changed all ".d", ".i", ".n" to NAs and removed columns that were all NAs.
 
-changing orders in levels of `tvhours`
+To go further, I will remove sparse columns as there seems to be many. I will set the preliminary threshold as features having more than 90% as missings (values: ".d", ".i", ".n").
+
+I won't remove variables regarding confidence in institution.
+
+```{r}
+removed = c()
+dont_remove = grep("^con", names(gss_all), value=TRUE)
+
+for(col in colnames(gss_all)){
+  na_percent = gss_all[[col]] %>% is.na() %>% mean()
+  if(na_percent > 0.9) {
+    if(!(col %in% dont_remove)){
+    removed = c(removed, col)
+    gss_all = gss_all %>% select(-col)
+    }
+  }
+}
+```
+I see that we now have removed 999 variables and there are 522 variables in `gss_all`.
+
+#### todo check removed variables
+
+Notice that some of the `con-` variables are very sparse for instance, `conbiz` has 99.8% missings.
+
+```{r}
+gss_all %>% select(conbiz) %>% is.na() %>% mean()
+```
+
+changing orders in levels of `tvhours` so that they will be in numerical order.
+
 ```{r}
 gss_all$tvhours = gss_all$tvhours %>% factor(levels = c("0",  "1", "2", "3", "4",  "5",  "6",  "7",  "8",  "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "23", "24"))
 ```
@@ -68,6 +99,7 @@ gss_all$contv %>%
   knitr::kable()
 
 ```
+
 I made Frequency tables for the two variables. Let's see summary statistics for `tvhours` by considering `tvhours` as a numeric variable.
 
 ```{r}
@@ -75,7 +107,6 @@ gss_all$tvhours %>%
   as.numeric() %>%
   Hmisc::describe()
 ```
-
 
 I will plot the two variables for each `panelwave` and see if the distribution changes depending on the wave.
 
@@ -110,23 +141,17 @@ Just sampled 1000 participants to see if there is a pattern.
 Below is a correlation matrix between `contv` and `tvhours` for the first wave. I removed non-numeric values and altered the variables to be numeric to see the relationship.
 
 ```{r}
-gss_all %>%
-  mutate(contv = as.numeric(contv),
-         tvhours = as.numeric(tvhours)) %>%
-  select(tvhours, contv) %>%
-  cor(use="complete.obs")
+# just panel 1
 
-gss_all %>%
-  filter(panelwave == 1) %>%
-  mutate(contv = as.numeric(contv),
-         tvhours = as.numeric(tvhours)) %>%
-  select(tvhours, contv) %>%
-  cor(use="complete.obs")
-
-library(purrr)
 gss_numeric = map_df(gss_all, as.numeric) 
+
 gss_numeric_p1 = gss_numeric %>%
   filter(panelwave == 1)
+
+# cor matrix between contv and tvhours
+gss_numeric_p1  %>%
+  select(tvhours, contv) %>%
+  cor(use="complete.obs")
 
 panel1_cor = cor(gss_numeric_p1, use="p")
 
@@ -134,7 +159,7 @@ contv_cor = panel1_cor  %>%
   as.data.frame() %>%
   select(contv) %>%
   rownames_to_column('var') %>% 
-  filter(contv > 0.2)
+  filter(abs(contv) > 0.2)
 
 # negatively corr check
 # check top ten? five?
@@ -142,45 +167,120 @@ contv_cor = panel1_cor  %>%
 # put in the y var in amelia
 
 contv_cor
-
-panel1_cor  %>%
-  as.data.frame() %>%
-  select(contv) %>%
-  rownames_to_column('var') %>% 
-  filter(contv < -0.25)
 ```
-Above is a pearson correlation coefficient with `contv` with all the other variables. I have filtered out those that are above 0.2.
+Above is a pearson correlation coefficient with `contv` with all the other variables. I have filtered out those that are above 0.2 or below -0.2.
 
-Should take out some variables. Like idnum, panelwave, ...
+Let's get top 10 vars correlated to `tvhours` and `contv` with `correlate()` from `corrr` package.
 
-Lot of relate vars have cor value of 1. Why?
+#### look correlation on whole dataset? Or just wave 1?
 
 ```{r}
-gss_numeric_p1 %>%
-  select(contv_cor$var) %>%
-  select(starts_with('rel'))
-```
-
-Seems like these columns are very sparse.
-Should I remove sparse columns?
-
-```{r}
-#library(lsr)
-#corr package
 library(corrr)
-#gss_all %>% filter(panelwave == 1) %>% correlate() %>% focus(contv) %>% arrange(tvhours)
+
+# function for finding top n correlated variables 
+corr_var = function(df, col, n = 10){
+  
+  col = enquo(col)
+  
+  top_n = df  %>% correlate() %>% select(rowname, !! col )  %>% top_n(n, abs(!!col))
+  top_n %>% arrange(desc(abs(!!col)))
+  }
+
+# top 10 correlated vars to contv
+cor_contv = corr_var(gss_numeric_p1, contv, 10)
+corr_var(gss_numeric, contv, 10)
+cor_tvhours = corr_var(gss_numeric_p1, tvhours, 10)
+```
+
+To do analysis, I will impute not just on the first panel but on the whole dataset.
+
+I tried to get imputed factor variables but I am getting errors.
+I will impute numeric variables.
+
+```{r}
+imputed_contv = gss_numeric %>%
+  select(idnum, panelwave, contv, cor_contv$rowname) %>%
+  amelia(idvars = "idnum", ts = "panelwave", ords = c("contv", "conpress", "tvhours", "conmedic", "confinan", "coneduc", "fejobaff", "conlabor", "wordsum", "conlegis", "conjudge"))
+
+imputed_contv = bind_rows(unclass(imputed_contv$imputations), .id = "m") %>%
+  group_by(m) %>%
+  nest()
+```
+There are still lot of NAs because some rows in waves 2 and three are completely missing.
+I will try to impute a wide formatted data.
+
+```{r}
+# change the data to a wide format
+long_to_wide = function(df){
+  df %>% 
+  gather(key, value, -idnum, -panelwave) %>%  
+     unite(new.col, c(key, panelwave)) %>%   
+     spread(new.col, value) 
+}
+
+contv_wide = list()
+for(i in c(1:5)){
+  contv_wide[[i]] = imputed_contv[[2]][[i]] %>%
+    long_to_wide()
+}
+
+names(contv_wide[[1]])[-1]
+
+# impute wide data
+imputed_wide = contv_wide[[1]]%>%
+  amelia(idvars = "idnum", ords = names(contv_wide[[1]])[-1]) 
+
+imputed_wide = bind_rows(unclass(imputed_wide$imputations), .id = "m") %>%
+  group_by(m) %>%
+  nest()
+
+# rows to remove
+imputed_wide[[2]][[1]][!complete.cases(imputed_wide[[2]][[1]]), ]
+
+imputed = imputed_wide[[2]][[1]]
+
+imputed_contv[[2]][[1]] %>% names()
+        
+wide_to_long = function(df){
+  df %>% 
+    gather(name, value, -idnum) %>%
+    separate(name, into=c("name", "id"), sep= -2) %>%
+    spread(key=c(name), value) %>%
+    separate(id, into = c("remove", "panelwave"), sep = -1) %>%
+    select(-remove)
+}
+```
+
+
+## Modeling
+
+Run fixed effects models.  Run “within and between” models.  Trying multinomial fixed effects models.
+
+Fixed effects models from the survival package.
+
+```{r}
+library(survival)
+
+fe_contv = 
+  imputed %>%
+  wide_to_long() %>%
+  mutate(panelwave = as.numeric(panelwave)) %>%
+  clogit(tvhours ~ contv + panelwave + conpress + conmedic + confinan + conlegis + coneduc + fejobaff + conlabor + wordsum + conjudge + strata(idnum), data = ., method = "efron")
+
+
+summary(fe_contv)
+```
+
+With imputed data that has na rows
+```{r}
+library(broom)
+models_imputations <- imputed_contv  %>%
+  mutate(model = data %>% map(~ clogit(tvhours ~ contv + panelwave + conpress + conmedic + confinan + conlegis + coneduc + fejobaff + conlabor + wordsum + conjudge + strata(idnum), data = ., method = "efron")),
+         tidied = model %>% map(~ tidy(., conf.int = TRUE)),
+         glance = model %>% map(~ glance(.)))
 ```
 
 ```{r}
-library(Amelia)
-
-gss_numeric_p1 %>%
-  select(contv_cor$var) %>%
-  is.na() %>%
-  as.data.frame() %>%
-  map(sum)
-
-# remove 50%? na vars
-# look at sparse vars
+models_imputations$tidied[[1]]
 ```
-I counted missings in each variables. Considering there are 6067 rows, most of the variables are very sparse columns.
+

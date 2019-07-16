@@ -1,7 +1,0 @@
-"0","set.seed(100) "
-"0",""
-"0","gss_all %>%"
-"0","  filter(idnum %in% (gss_all$idnum %>% sample(1000))) %>%"
-"0","  mutate(idnum = factor(idnum)) %>%"
-"0","  ggplot(aes(x = panelwave, y = tvhours, group = idnum, color = idnum)) +"
-"0","  geom_point() + geom_line(alpha = 0.5) + theme(legend.position=""none"")"

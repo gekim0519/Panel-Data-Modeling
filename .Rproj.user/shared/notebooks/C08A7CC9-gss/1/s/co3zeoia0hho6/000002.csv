@@ -1,4 +1,0 @@
-"0"," gss_all %>%"
-"0","  ggplot(aes(x=contv)) +"
-"0","  geom_bar(stat=""count"") + "
-"0","  facet_grid(. ~ panelwave)"
